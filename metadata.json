@@ -1,0 +1,5 @@
+{
+  "name": "Pareto",
+  "description": "A monitoring interface for Quality Managers to review, edit, and approve AI-generated customer messages.",
+  "requestFramePermissions": []
+}
