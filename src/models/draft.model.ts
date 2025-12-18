@@ -1,11 +1,15 @@
 export interface CustomerDraft {
-  id: string;
-  customerName: string;
-  contextSummary: string;
-  draftMessage: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  processedAt?: string; // ISO String for history date
-  satisfactionScore?: number; // 1-5, optional
+  ID: string;
+  Cliente: string;
+  Contexto: string;
+  DraftMessage: string;
+  FinalMessage?: string;
+  Status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  ProcessedAt?: string; // ISO String for history date
+  Data?: string;
+  SatisfactionScore?: number; // 1-5, optional
+  TelegramChatID?: string;
+  CSAT?: number;
 }
 
 export interface ProcessDraftPayload {

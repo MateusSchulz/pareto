@@ -13,15 +13,15 @@ import { DraftService } from '../services/draft.service';
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
         <div>
-          <h3 class="text-lg font-semibold text-gray-800">{{ draft().customerName }}</h3>
-          <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">ID: {{ draft().id }}</span>
+          <h3 class="text-lg font-semibold text-gray-800">{{ draft().Cliente }}</h3>
+          <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">ID: {{ draft().ID }}</span>
         </div>
         <div class="flex items-center gap-3">
           @if(isEditing()) {
              <span class="px-2 py-1 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700 uppercase tracking-wider">Editing Mode</span>
           }
           <div class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-            {{ draft().status }}
+            {{ draft().Status }}
           </div>
         </div>
       </div>
@@ -44,7 +44,7 @@ import { DraftService } from '../services/draft.service';
             </h4>
             
             <!-- Context Regenerate Button -->
-            @if (!isRegeneratingContext() && draft().status === 'PENDING') {
+            @if (!isRegeneratingContext() && draft().Status === 'PENDING') {
               <button 
                 (click)="onRegenerate('CONTEXT')"
                 class="text-indigo-400 hover:text-indigo-700 transition-colors p-1 rounded-md hover:bg-indigo-50"
@@ -58,7 +58,7 @@ import { DraftService } from '../services/draft.service';
           </div>
           
           <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 transition-all" [class.opacity-60]="isRegeneratingContext()">
-             <p class="text-sm text-indigo-900 leading-relaxed">{{ draft().contextSummary }}</p>
+             <p class="text-sm text-indigo-900 leading-relaxed">{{ draft().Contexto }}</p>
           </div>
         </div>
 
@@ -79,7 +79,7 @@ import { DraftService } from '../services/draft.service';
             </label>
 
             <!-- Message Regenerate Button -->
-            @if (!isEditing() && !isRegeneratingMessage() && draft().status === 'PENDING') {
+            @if (!isEditing() && !isRegeneratingMessage() && draft().Status === 'PENDING') {
               <button 
                 (click)="onRegenerate('MESSAGE')"
                 class="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded-md hover:bg-gray-100"
@@ -95,7 +95,7 @@ import { DraftService } from '../services/draft.service';
           <!-- View Mode: Read Only Display -->
           @if (!isEditing()) {
             <div class="w-full p-4 bg-gray-50 text-sm text-gray-800 border border-gray-200 rounded-lg leading-relaxed whitespace-pre-wrap transition-all" [class.opacity-60]="isRegeneratingMessage()">
-              {{ draft().draftMessage }}
+              {{ draft().DraftMessage }}
             </div>
           }
 
@@ -185,7 +185,7 @@ export class DraftCardComponent {
   tempMessage = signal('');
 
   startEditing() {
-    this.tempMessage.set(this.draft().draftMessage);
+    this.tempMessage.set(this.draft().DraftMessage);
     this.isEditing.set(true);
   }
 
@@ -196,21 +196,27 @@ export class DraftCardComponent {
 
   saveEditing() {
     this.save.emit({
-      id: this.draft().id,
+      id: this.draft().ID,
       message: this.tempMessage()
     });
     this.isEditing.set(false);
   }
 
   onApprove() {
-    this.approve.emit({
-      id: this.draft().id,
-      message: this.draft().draftMessage
-    });
+    this.draftService.approveDraft(this.draft().ID, this.draft().DraftMessage)
+      .subscribe(() => {
+        this.approve.emit({
+          id: this.draft().ID,
+          message: this.draft().DraftMessage
+        });
+      });
   }
 
   onReject() {
-    this.reject.emit(this.draft().id);
+    this.draftService.rejectDraft(this.draft().ID)
+      .subscribe(() => {
+        this.reject.emit(this.draft().ID);
+      });
   }
 
   onRegenerate(target: 'CONTEXT' | 'MESSAGE') {
@@ -220,8 +226,15 @@ export class DraftCardComponent {
       this.isRegeneratingMessage.set(true);
     }
 
-    this.draftService.regenerateDraft(this.draft().id, target)
+    this.draftService.regenerateDraft(this.draft().ID, this.draft().Contexto, this.draft().Cliente)
       .subscribe({
+        error: () => {
+          if (target === 'CONTEXT') {
+            this.isRegeneratingContext.set(false);
+          } else {
+            this.isRegeneratingMessage.set(false);
+          }
+        },
         complete: () => {
           if (target === 'CONTEXT') {
             this.isRegeneratingContext.set(false);

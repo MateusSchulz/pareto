@@ -16,9 +16,9 @@
       <!-- Global Stats -->
       <div class="flex items-center">
         <div class="px-4 py-1.5 bg-gray-100 rounded-full border border-gray-200 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" [class.bg-orange-500]="draftService.drafts().length > 0" [class.bg-green-500]="draftService.drafts().length === 0"></span>
+          <span class="w-2 h-2 rounded-full" [class.bg-orange-500]="pendingCount() > 0" [class.bg-green-500]="pendingCount() === 0"></span>
           <span class="text-xs font-semibold text-gray-600">
-            Pending: <span class="text-gray-900">{{ draftService.drafts().length }}</span>
+            Pending: <span class="text-gray-900">{{ pendingCount() }}</span>
           </span>
         </div>
       </div>

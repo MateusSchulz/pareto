@@ -1,12 +1,12 @@
-import { Component, inject, computed, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Component, inject, computed, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { DraftService } from '../services/draft.service';
 import { DraftCardComponent } from './draft-card.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, DraftCardComponent, DatePipe],
+  imports: [CommonModule, DraftCardComponent],
   template: `
     <div class="space-y-6">
       
@@ -44,7 +44,7 @@ import { DraftCardComponent } from './draft-card.component';
 
         <!-- Global Actions -->
         <button 
-          (click)="draftService.loadDrafts()" 
+          (click)="draftService.getDrafts()" 
           [disabled]="draftService.loading()"
           class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-2 sm:mb-0"
         >
@@ -82,7 +82,7 @@ import { DraftCardComponent } from './draft-card.component';
         }
 
         <div class="grid gap-6">
-          @for (draft of pendingDrafts(); track draft.id) {
+          @for (draft of pendingDrafts(); track draft.ID) {
             <app-draft-card 
               [draft]="draft"
               (approve)="handleApprove($event)"
@@ -108,32 +108,32 @@ import { DraftCardComponent } from './draft-card.component';
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                @for (draft of historyDrafts(); track draft.id) {
+                @for (draft of historyDrafts(); track draft.ID) {
                   <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {{ draft.processedAt | date:'MMM d, y, h:mm a' }}
+                      {{ draft.Data }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm font-medium text-gray-900">{{ draft.customerName }}</div>
+                      <div class="text-sm font-medium text-gray-900">{{ draft.Cliente }}</div>
                     </td>
                     <td class="px-6 py-4">
-                      <div class="text-sm text-gray-600 max-w-xs truncate" [title]="draft.draftMessage">
-                        {{ draft.draftMessage || '(No message sent)' }}
+                      <div class="text-sm text-gray-600 max-w-xs truncate" [title]="draft.DraftMessage">
+                        {{ draft.DraftMessage || '(No message sent)' }}
                       </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
-                        [class.bg-green-100]="draft.status === 'APPROVED'"
-                        [class.text-green-800]="draft.status === 'APPROVED'"
-                        [class.bg-red-100]="draft.status === 'REJECTED'"
-                        [class.text-red-800]="draft.status === 'REJECTED'">
-                        {{ draft.status }}
+                        [class.bg-green-100]="draft.Status === 'APPROVED'"
+                        [class.text-green-800]="draft.Status === 'APPROVED'"
+                        [class.bg-red-100]="draft.Status === 'REJECTED'"
+                        [class.text-red-800]="draft.Status === 'REJECTED'">
+                        {{ draft.Status }}
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      @if (draft.satisfactionScore) {
+                      @if (draft.SatisfactionScore) {
                          <div class="flex items-center text-yellow-400">
-                           <span class="mr-1 font-bold text-gray-700">{{ draft.satisfactionScore }}</span>
+                           <span class="mr-1 font-bold text-gray-700">{{ draft.SatisfactionScore }}</span>
                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
                               <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
                             </svg>
@@ -159,23 +159,39 @@ import { DraftCardComponent } from './draft-card.component';
     </div>
   `
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit {
   draftService = inject(DraftService);
   
   // State for tabs
   currentTab = signal<'queue' | 'history'>('queue');
 
+  ngOnInit() {
+    this.draftService.getDrafts();
+  }
+
   // Computed views of the data
   pendingDrafts = computed(() => 
-    this.draftService.drafts().filter(d => d.status === 'PENDING')
+    this.draftService.drafts().filter(d => d.Status === 'PENDING')
   );
 
   historyDrafts = computed(() => 
     this.draftService.drafts()
-      .filter(d => d.status !== 'PENDING')
+      .filter(d => d.Status !== 'PENDING')
       .sort((a, b) => {
-        const dateA = new Date(a.processedAt || 0).getTime();
-        const dateB = new Date(b.processedAt || 0).getTime();
+        // Parse "dd/MM/yyyy" to timestamp
+        const parseDate = (dateStr?: string) => {
+          if (!dateStr) return 0;
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            // new Date(year, monthIndex, day)
+            return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+          }
+           // Fallback for ISO strings if they still exist
+          return new Date(dateStr).getTime();
+        };
+
+        const dateA = parseDate(a.Data || a.ProcessedAt);
+        const dateB = parseDate(b.Data || b.ProcessedAt);
         return dateB - dateA; // Newest first
       })
   );
