@@ -1,12 +1,12 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { CustomerDraft, ProcessDraftPayload } from '../models/draft.model';
 import { catchError, map, of, tap, timer, finalize } from 'rxjs';
 
 export interface ChatMessage {
-  sender: 'client' | 'bot' | 'human';
-  text: string;
-  time: string;
+  from: 'client' | 'bot' | 'human';
+  message: string;
+  timestamp: string;
 }
 
 @Injectable({
@@ -15,26 +15,54 @@ export interface ChatMessage {
 export class DraftService {
   private http = inject(HttpClient);
   private readonly API_BASE = 'http://localhost:5678/webhook/api/drafts';
-
-  // State
-  // Chat State
-  readonly activeChat = signal<CustomerDraft | null>(null);
-  readonly chatHistory = signal<ChatMessage[]>([
-    { sender: 'client', text: 'Hi, I have an issue with my recent order.', time: '10:00 AM' },
-    { sender: 'bot', text: 'Hello! I can help with that. Could you please provide your Order ID?', time: '10:01 AM' },
-    { sender: 'client', text: 'Sure, it is #12345.', time: '10:02 AM' },
-    { sender: 'bot', text: 'Thank you. I see the delay. I have prioritized it for shipping today.', time: '10:03 AM' },
-    { sender: 'bot', text: 'On a scale of 1-5, how satisfied are you with this resolution?', time: '10:03 AM' },
-    { sender: 'client', text: '4', time: '10:04 AM' },
-    { sender: 'human', text: 'Hi, Manager here. I wanted to personally apologize for the delay.', time: '10:05 AM' }
-  ]);
-
   readonly drafts = signal<CustomerDraft[]>([]);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
+  private readonly API_HISTORY = 'http://localhost:5678/webhook/api/chat-history';
+  readonly activeChat = signal<CustomerDraft | null>(null);
+  readonly chatHistory = signal<ChatMessage[]>([]);
+  readonly loadingChat = signal<boolean>(false); // Novo loading só pro chat
+
   openChat(draft: CustomerDraft) {
     this.activeChat.set(draft);
+    this.chatHistory.set([]); // Limpa o chat anterior para não piscar dados velhos
+    
+    // Se o draft tiver um ID de Telegram, busca o histórico real
+    if (draft.TelegramChatID) {
+      this.fetchChatHistory(draft.TelegramChatID);
+    } else {
+      // Fallback se não tiver ID: mostra mensagem de erro ou vazio
+      this.chatHistory.set([{ 
+        from: 'bot', 
+        message: 'Erro: Cliente sem Telegram ID vinculado.', 
+        timestamp: '--:--' 
+      }]);
+    }
+  }
+
+  fetchChatHistory(telegramChatId: string) {
+    this.loadingChat.set(true);
+    
+    const params = new HttpParams().set('chat_id', telegramChatId);
+
+    this.http.get<ChatMessage[]>(this.API_HISTORY, { params }).pipe(
+      tap(history => {
+        // Atualiza o sinal com os dados reais do Google Sheets
+        this.chatHistory.set(history);
+      }),
+      catchError(err => {
+        console.error('Erro ao buscar chat:', err);
+        // Fallback visual em caso de erro
+        this.chatHistory.set([{ 
+          from: 'bot', 
+          message: 'Não foi possível carregar o histórico.', 
+          timestamp: 'Erro' 
+        }]);
+        return of([]);
+      }),
+      finalize(() => this.loadingChat.set(false))
+    ).subscribe();
   }
 
   closeChat() {
@@ -113,5 +141,29 @@ export class DraftService {
     this.drafts.update(current => 
       current.map(d => d.ID === id ? { ...d, DraftMessage: newMessage } : d)
     );
+  }
+
+  sendMockMessage(text: string) {
+    // 1. Adiciona a mensagem do "Humano" (Gerente)
+    this.chatHistory.update(history => [
+      ...history,
+      { 
+        from: 'human', 
+        message: text, 
+        timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+      }
+    ]);
+
+    // 2. (Opcional) Simula resposta do cliente após 2 segundos
+    setTimeout(() => {
+      this.chatHistory.update(history => [
+        ...history,
+        { 
+          from: 'client', 
+          message: 'Obrigado pelo retorno, gerente!', 
+          timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+        }
+      ]);
+    }, 2000);
   }
 }
