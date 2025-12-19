@@ -1,7 +1,8 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { CustomerDraft, ProcessDraftPayload } from '../models/draft.model';
-import { catchError, map, of, tap, timer, finalize } from 'rxjs';
+import { catchError, map, of, tap, timer, finalize, Observable } from 'rxjs';
+import { text } from 'stream/consumers';
 
 export interface ChatMessage {
   from: 'client' | 'bot' | 'human';
@@ -23,6 +24,9 @@ export class DraftService {
   readonly activeChat = signal<CustomerDraft | null>(null);
   readonly chatHistory = signal<ChatMessage[]>([]);
   readonly loadingChat = signal<boolean>(false); // Novo loading só pro chat
+
+  private readonly API_MESSAGES = 'http://localhost:5678/webhook/api/messages';
+  private readonly API_TOGGLE = 'https://hot-hats-stand.loca.lt/webhook-test/api/toggle-ai';
 
   openChat(draft: CustomerDraft) {
     this.activeChat.set(draft);
@@ -143,8 +147,16 @@ export class DraftService {
     );
   }
 
-  sendMockMessage(text: string) {
-    // 1. Adiciona a mensagem do "Humano" (Gerente)
+  sendHumanMessage(text: string) {
+    const currentChat = this.activeChat();
+    
+    // Segurança: Se não tiver chat aberto ou não tiver ID do Telegram, não faz nada
+    if (!currentChat || !currentChat.TelegramChatID) {
+      console.error('Erro: Chat sem ID do Telegram vinculado.');
+      return;
+    }
+
+    // 1. Atualização Otimista (Mostra na tela na hora para não parecer travado)
     this.chatHistory.update(history => [
       ...history,
       { 
@@ -154,16 +166,43 @@ export class DraftService {
       }
     ]);
 
-    // 2. (Opcional) Simula resposta do cliente após 2 segundos
-    setTimeout(() => {
-      this.chatHistory.update(history => [
-        ...history,
-        { 
-          from: 'client', 
-          message: 'Obrigado pelo retorno, gerente!', 
-          timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-        }
-      ]);
-    }, 2000);
+    // 2. Envia para o n8n (Fire and Forget - ou tratamos erro se falhar)
+    const body = {
+      chat_id: currentChat.TelegramChatID,
+      text: text
+    };
+
+    // Usando a URL que você já definiu: API_MESSAGES
+    this.http.post(this.API_MESSAGES, body).subscribe({
+      next: (res) => console.log('Enviado para n8n:', res),
+      error: (err) => {
+        console.error('Erro ao enviar para n8n:', err);
+        // Opcional: Adicionar aviso visual de erro no chatHistory se falhar
+      }
+    });
+  }
+
+  sendMessage(chatId: string, text: string): Observable<any> {
+    const body = {
+      chat_id: chatId,
+      text: text
+    };
+
+    return this.http.post(this.API_MESSAGES, body);
+  }
+
+  toggleAI(chatId: string, status: boolean) {
+    const body = {
+      chat_id: chatId,
+      status: status
+    };
+
+    return this.http.post(this.API_TOGGLE, body).pipe(
+      tap(() => console.log(`IA alterada para: ${status}`)),
+      catchError(err => {
+        console.error('Erro ao alterar IA', err);
+        return of(null);
+      })
+    );
   }
 }
