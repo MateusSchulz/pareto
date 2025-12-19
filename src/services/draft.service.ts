@@ -15,18 +15,18 @@ export interface ChatMessage {
 })
 export class DraftService {
   private http = inject(HttpClient);
-  private readonly API_BASE = 'http://localhost:5678/webhook/api/drafts';
+  private readonly API_BASE = 'https://wake-victoria-tonight-hardly.trycloudflare.com/webhook/api/drafts';
   readonly drafts = signal<CustomerDraft[]>([]);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
-  private readonly API_HISTORY = 'http://localhost:5678/webhook/api/chat-history';
+  private readonly API_HISTORY = 'https://wake-victoria-tonight-hardly.trycloudflare.com/webhook/api/chat-history';
   readonly activeChat = signal<CustomerDraft | null>(null);
   readonly chatHistory = signal<ChatMessage[]>([]);
   readonly loadingChat = signal<boolean>(false); // Novo loading só pro chat
 
-  private readonly API_MESSAGES = 'http://localhost:5678/webhook/api/messages';
-  private readonly API_TOGGLE = 'https://hot-hats-stand.loca.lt/webhook-test/api/toggle-ai';
+  private readonly API_MESSAGES = 'https://wake-victoria-tonight-hardly.trycloudflare.com/webhook/api/messages';
+  private readonly API_TOGGLE = 'https://wake-victoria-tonight-hardly.trycloudflare.com/webhook/api/toggle-ai';
 
   openChat(draft: CustomerDraft) {
     this.activeChat.set(draft);
