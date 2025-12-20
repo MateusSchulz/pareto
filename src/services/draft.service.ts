@@ -15,18 +15,18 @@ export interface ChatMessage {
 })
 export class DraftService {
   private http = inject(HttpClient);
-  private readonly API_BASE = 'https://wheels-absent-domains-reservation.trycloudflare.com/webhook/api/drafts';
+  private readonly API_BASE = 'https://pareto-n8n.mschulz.dev/webhook/api/drafts';
   readonly drafts = signal<CustomerDraft[]>([]);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
-  private readonly API_HISTORY = 'https://wheels-absent-domains-reservation.trycloudflare.com/webhook/api/chat-history';
+  private readonly API_HISTORY = 'https://pareto-n8n.mschulz.dev/webhook/api/chat-history';
   readonly activeChat = signal<CustomerDraft | null>(null);
   readonly chatHistory = signal<ChatMessage[]>([]);
   readonly loadingChat = signal<boolean>(false); // Novo loading só pro chat
 
-  private readonly API_MESSAGES = 'https://wheels-absent-domains-reservation.trycloudflare.com/webhook/api/messages';
-  private readonly API_TOGGLE = 'https://wheels-absent-domains-reservation.trycloudflare.com/webhook/api/toggle-ai';
+  private readonly API_MESSAGES = 'https://pareto-n8n.mschulz.dev/webhook/api/messages';
+  private readonly API_TOGGLE = 'https://pareto-n8n.mschulz.dev/webhook/api/toggle-ai';
 
   openChat(draft: CustomerDraft) {
     this.activeChat.set(draft);
